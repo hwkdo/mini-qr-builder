@@ -1,0 +1,97 @@
+name: Build custom mini-qr image
+
+on:
+  schedule:
+    # Täglich um 08:00 UTC auf neue Upstream-Releases prüfen
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force_version:
+        description: "Optional: bestimmte Version erzwingen (z.B. v0.31.0)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout builder repo
+        uses: actions/checkout@v4
+
+      - name: Resolve upstream release
+        id: release
+        env:
+          FORCE_VERSION: ${{ inputs.force_version }}
+        run: |
+          if [[ -n "${FORCE_VERSION}" ]]; then
+            tag="${FORCE_VERSION}"
+          else
+            tag="$(curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "User-Agent: mini-qr-builder" \
+              https://api.github.com/repos/lyqht/mini-qr/releases/latest \
+              | jq -r '.tag_name')"
+          fi
+
+          if [[ -z "${tag}" || "${tag}" == "null" ]]; then
+            echo "Kein Release-Tag gefunden."
+            exit 1
+          fi
+
+          last_built="$(tr -d '[:space:]' < .github/last-built-version)"
+          echo "Upstream:  ${tag}"
+          echo "Zuletzt gebaut: ${last_built}"
+
+          if [[ "${tag}" == "${last_built}" && -z "${FORCE_VERSION}" ]]; then
+            echo "build_required=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "build_required=true" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout upstream mini-qr
+        if: steps.release.outputs.build_required == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: lyqht/mini-qr
+          ref: ${{ steps.release.outputs.tag }}
+          path: upstream
+
+      - name: Set up Docker Buildx
+        if: steps.release.outputs.build_required == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.release.outputs.build_required == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: steps.release.outputs.build_required == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SOURCE_DIR: ${{ github.workspace }}/upstream
+        run: |
+          chmod +x scripts/build-image.sh
+          ./scripts/build-image.sh
+
+      - name: Update last-built-version
+        if: steps.release.outputs.build_required == 'true'
+        run: |
+          echo "${{ steps.release.outputs.tag }}" > .github/last-built-version
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/last-built-version
+          git diff --staged --quiet || git commit -m "chore: built mini-qr ${{ steps.release.outputs.tag }}"
+          git push
+
+      - name: No build needed
+        if: steps.release.outputs.build_required != 'true'
+        run: echo "Kein neues Release – Build übersprungen."

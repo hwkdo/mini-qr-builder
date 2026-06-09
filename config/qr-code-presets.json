@@ -1,0 +1,48 @@
+[
+  {
+    "name": "HWKDO",
+    "type": "svg",
+    "backgroundOptions": {
+      "color": "transparent"
+    },
+    "data": "Inhalt des QR-Code hier.",
+    "width": 200,
+    "height": 200,
+    "margin": 0,
+    "dotsOptions": {
+      "color": "#073070",
+      "type": "dots"
+    },
+    "cornersSquareOptions": {
+      "color": "#456494",
+      "type": "rounded"
+    },
+    "cornersDotOptions": {
+      "color": "#456494",
+      "type": "dot"
+    },
+    "imageOptions": {
+      "margin": 0
+    },
+    "qrOptions": {
+      "errorCorrectionLevel": "H"
+    },
+    "style": {
+      "borderRadius": "0px",
+      "background": "#79abec",
+      "frame": {
+        "text": "QR Code Titel",
+        "position": "bottom",
+        "style": {
+          "textColor": "#073070",
+          "backgroundColor": "#79abec",
+          "borderColor": "#000000",
+          "borderWidth": "2px",
+          "borderRadius": "16px",
+          "padding": "20px",
+          "fontFamily": "Arial, sans-serif"
+        }
+      }
+    }
+  }
+]

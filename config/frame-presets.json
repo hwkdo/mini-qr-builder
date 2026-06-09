@@ -1,0 +1,16 @@
+[
+  {
+    "name": "HWKDO",
+    "text": "QR-Code Titel",
+    "position": "bottom",
+    "style": {
+      "textColor": "#073070",
+      "backgroundColor": "#79abec",
+      "borderColor": "#000000",
+      "borderWidth": "2px",
+      "borderRadius": "16px",
+      "padding": "20px",
+      "fontFamily": "Arial, sans-serif"
+    }
+  }
+]
