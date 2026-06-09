@@ -18,6 +18,9 @@ permissions:
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
+    outputs:
+      build_required: ${{ steps.release.outputs.build_required }}
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - name: Checkout builder repo
         uses: actions/checkout@v4
@@ -95,3 +98,11 @@ jobs:
       - name: No build needed
         if: steps.release.outputs.build_required != 'true'
         run: echo "Kein neues Release – Build übersprungen."
+
+  deploy-portainer:
+    needs: check-and-build
+    if: needs.check-and-build.outputs.build_required == 'true'
+    runs-on: [self-hosted, portainer]
+    steps:
+      - name: Portainer Stack neu deployen
+        run: curl -fsS -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
