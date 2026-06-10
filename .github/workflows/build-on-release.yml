@@ -105,4 +105,34 @@ jobs:
     runs-on: [self-hosted, portainer]
     steps:
       - name: Portainer Stack neu deployen
-        run: curl -fsS -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
+        env:
+          WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+          RELEASE_TAG: ${{ needs.check-and-build.outputs.tag }}
+          DEPLOY_ID: ${{ github.run_id }}
+        run: |
+          IMAGE_VERSION="${RELEASE_TAG#v}"
+
+          # Query-Parameter anhängen (Portainer: tag + Env-Var erzwingen Redeploy)
+          if [[ "${WEBHOOK_URL}" == *"?"* ]]; then
+            WEBHOOK="${WEBHOOK_URL}&tag=${IMAGE_VERSION}&DEPLOY_ID=${DEPLOY_ID}"
+          else
+            WEBHOOK="${WEBHOOK_URL}?tag=${IMAGE_VERSION}&DEPLOY_ID=${DEPLOY_ID}"
+          fi
+
+          echo "Deploy Image-Tag: ${IMAGE_VERSION}"
+          echo "Webhook-Ziel: ${WEBHOOK_URL%%\?*} (Parameter: tag, DEPLOY_ID)"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "${response_file}" -w "%{http_code}" -X POST "${WEBHOOK}")"
+          body="$(cat "${response_file}")"
+          rm -f "${response_file}"
+
+          echo "HTTP Status: ${http_code}"
+          if [[ -n "${body}" ]]; then
+            echo "Response: ${body}"
+          fi
+
+          if [[ "${http_code}" -lt 200 || "${http_code}" -ge 300 ]]; then
+            echo "Portainer-Webhook fehlgeschlagen."
+            exit 1
+          fi
